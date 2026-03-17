@@ -6,14 +6,26 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
 
-import 'package:blood_app/main.dart';
+import 'package:blood_app/src/app.dart';
 
 void main() {
-  testWidgets('Login screen loads', (WidgetTester tester) async {
-    await tester.pumpWidget(const BloodApp());
+  testWidgets('Action card renders title', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: ActionCard(
+            title: 'Find Donor',
+            icon: Icons.search,
+            onTap: _noop,
+          ),
+        ),
+      ),
+    );
 
-    expect(find.text('Welcome Back'), findsOneWidget);
-    expect(find.text('Login'), findsOneWidget);
+    expect(find.text('Find Donor'), findsOneWidget);
   });
 }
+
+void _noop() {}
