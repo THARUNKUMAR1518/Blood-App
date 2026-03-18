@@ -4,8 +4,73 @@ import 'package:http/http.dart' as http;
 
 import '../models/app_models.dart';
 
+class PlaceSearchResult {
+  const PlaceSearchResult({
+    required this.latitude,
+    required this.longitude,
+    required this.displayName,
+  });
+
+  final double latitude;
+  final double longitude;
+  final String displayName;
+}
+
 class HospitalService {
   static const _endpoint = 'https://overpass-api.de/api/interpreter';
+  static const _geocodingEndpoint = 'nominatim.openstreetmap.org';
+
+  Future<PlaceSearchResult> searchPlace(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
+      throw Exception('Please enter a place to search.');
+    }
+
+    final uri = Uri.https(_geocodingEndpoint, '/search', {
+      'q': trimmed,
+      'format': 'jsonv2',
+      'limit': '1',
+    });
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'User-Agent': 'blood-connect/1.0 (hospital-search)',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Unable to search place right now.');
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! List || decoded.isEmpty) {
+      throw Exception('No place found. Try a different search.');
+    }
+
+    final first = decoded.first;
+    if (first is! Map<String, dynamic>) {
+      throw Exception('Unable to read place search result.');
+    }
+
+    final latValue = first['lat'];
+    final lonValue = first['lon'];
+    if (latValue == null || lonValue == null) {
+      throw Exception('Selected place has no coordinates.');
+    }
+
+    final latitude = double.tryParse(latValue.toString());
+    final longitude = double.tryParse(lonValue.toString());
+    if (latitude == null || longitude == null) {
+      throw Exception('Invalid coordinates returned for searched place.');
+    }
+
+    return PlaceSearchResult(
+      latitude: latitude,
+      longitude: longitude,
+      displayName: (first['display_name'] ?? trimmed).toString(),
+    );
+  }
 
   Future<List<NearbyHospital>> fetchNearbyHospitals({
     required double latitude,

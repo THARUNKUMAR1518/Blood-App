@@ -108,16 +108,20 @@ class SupabaseBackendService {
     return DonorProfile.fromJson(data);
   }
 
-  Future<List<DonorProfile>> fetchAvailableDonors() async {
-    final data = await _client
-        .from('profiles')
-        .select()
-        .eq('available', true)
-        .order('full_name');
+  Future<List<DonorProfile>> fetchDonors({bool? availableOnly}) async {
+    var query = _client.from('profiles').select();
+    if (availableOnly == true) {
+      query = query.eq('available', true);
+    }
+    final data = await query.order('full_name');
 
     return (data as List)
         .map((item) => DonorProfile.fromJson(item as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<List<DonorProfile>> fetchAvailableDonors() {
+    return fetchDonors(availableOnly: true);
   }
 
   Future<void> updateMyProfile({

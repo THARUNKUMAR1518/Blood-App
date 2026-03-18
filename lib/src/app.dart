@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -12,6 +13,19 @@ import 'services/hospital_service.dart';
 import 'services/local_notification_service.dart';
 import 'services/supabase_backend_service.dart';
 
+Route<T> _smoothPageRoute<T>(Widget page) {
+  return PageRouteBuilder<T>(
+    transitionDuration: const Duration(milliseconds: 260),
+    reverseTransitionDuration: const Duration(milliseconds: 220),
+    pageBuilder: (context, animation, secondaryAnimation) => page,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final fade = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+      final slide = Tween<Offset>(begin: const Offset(0.04, 0), end: Offset.zero).animate(fade);
+      return FadeTransition(opacity: fade, child: SlideTransition(position: slide, child: child));
+    },
+  );
+}
+
 class BloodApp extends StatelessWidget {
   const BloodApp({super.key});
 
@@ -19,7 +33,7 @@ class BloodApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Blood Connect',
+      title: 'Blood Plus+',
       theme: AppTheme.theme,
       home: const AuthGate(),
     );
@@ -29,8 +43,12 @@ class BloodApp extends StatelessWidget {
 class AppTheme {
   static const primary = Color(0xFFE53935);
   static const primaryDark = Color(0xFFB71C1C);
+  static const primaryLight = Color(0xFFF4423B);
   static const accent = Color(0xFFFF8A80);
-  static const background = Color(0xFFF8F9FB);
+  static const background = Color(0xFFFAFAFA);
+  static const surfaceVariant = Color(0xFFF5F5F5);
+  static const textPrimary = Color(0xFF1F1F1F);
+  static const textSecondary = Color(0xFF616161);
 
   static ThemeData get theme {
     return ThemeData(
@@ -40,30 +58,91 @@ class AppTheme {
         primary: primary,
         secondary: accent,
         surface: Colors.white,
+        surfaceTint: Colors.transparent,
+        brightness: Brightness.light,
       ),
       scaffoldBackgroundColor: background,
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
+        foregroundColor: textPrimary,
         elevation: 0,
+        centerTitle: false,
+        titleTextStyle: TextStyle(
+          color: textPrimary,
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       cardTheme: CardThemeData(
         color: Colors.white,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        elevation: 1,
+        shadowColor: Colors.black.withValues(alpha: 0.08),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: EdgeInsets.zero,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        fillColor: surfaceVariant,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: primary, width: 1.3),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: surfaceVariant),
         ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: primary, width: 2),
+        ),
+        hintStyle: const TextStyle(color: textSecondary, fontSize: 15),
+        labelStyle: const TextStyle(color: textSecondary, fontSize: 14),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: primary,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          side: const BorderSide(color: primary, width: 1.5),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: primary,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+        },
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.white,
+        elevation: 4,
+        shadowColor: Colors.black.withValues(alpha: 0.1),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
+          }
+          return const TextStyle(fontSize: 12, fontWeight: FontWeight.w500);
+        }),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       ),
     );
   }
@@ -133,82 +212,6 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _loading = false);
       }
     }
-  }
-
-  Future<void> _resendConfirmation() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
-      _showSnack(context, 'Enter your email first.');
-      return;
-    }
-
-    try {
-      await _backend.resendConfirmationEmail(email);
-      if (!mounted) return;
-      _showSnack(context, 'Confirmation email sent. Check inbox/spam.');
-    } catch (error) {
-      if (!mounted) return;
-      _showSnack(context, error.toString());
-    }
-  }
-
-  void _showForgotPasswordDialog() {
-    final emailController = TextEditingController();
-    final currentContext = context;
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Reset Password'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Enter your email to receive a password reset link.'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  hintText: 'Enter your email',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                final email = emailController.text.trim();
-                if (email.isEmpty || !email.contains('@')) {
-                  if (!mounted) return;
-                  // ignore: use_build_context_synchronously
-                  _showSnack(currentContext, 'Enter a valid email');
-                  return;
-                }
-
-                try {
-                  await _backend.resetPassword(email);
-                  if (!mounted) return;
-                  // ignore: use_build_context_synchronously
-                  Navigator.of(dialogContext).pop();
-                  // ignore: use_build_context_synchronously
-                  _showSnack(currentContext, 'Password reset link sent to your email.');
-                } catch (error) {
-                  if (!mounted) return;
-                  // ignore: use_build_context_synchronously
-                  _showSnack(currentContext, error.toString());
-                }
-              },
-              child: const Text('Send Reset Link'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -299,20 +302,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               : const Text('Login', style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          TextButton(
-                            onPressed: _showForgotPasswordDialog,
-                            child: const Text('Forgot password?'),
-                          ),
-                          TextButton(
-                            onPressed: _resendConfirmation,
-                            child: const Text('Resend email'),
-                          ),
-                        ],
-                      ),
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -321,7 +310,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           TextButton(
                             onPressed: () {
                               Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const SignUpScreen()),
+                                _smoothPageRoute(const SignUpScreen()),
                               );
                             },
                             child: const Text('Sign up'),
@@ -355,25 +344,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   String _bloodGroup = 'A+';
+  bool _hidePassword = true;
+  bool _hideConfirmPassword = true;
   bool _loading = false;
-
-  Future<void> _resendConfirmationEmail() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
-      _showSnack(context, 'Enter your email first.');
-      return;
-    }
-
-    try {
-      await SupabaseBackendService.instance.resendConfirmationEmail(email);
-      if (!mounted) return;
-      _showSnack(context, 'Confirmation email sent. Check inbox/spam.');
-    } catch (error) {
-      if (!mounted) return;
-      _showSnack(context, error.toString());
-    }
-  }
 
   @override
   void dispose() {
@@ -381,11 +356,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showSnack(context, 'Password and Confirm Password must match.');
+      return;
+    }
 
     setState(() => _loading = true);
     try {
@@ -471,12 +451,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
+                  obscureText: _hidePassword,
+                  decoration: InputDecoration(
                     hintText: 'Password',
-                    prefixIcon: Icon(Icons.lock_outline),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      onPressed: () => setState(() => _hidePassword = !_hidePassword),
+                      icon: Icon(_hidePassword ? Icons.visibility_off : Icons.visibility),
+                    ),
                   ),
                   validator: (value) => (value == null || value.length < 6) ? 'Password must be 6+ characters' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _confirmPasswordController,
+                  obscureText: _hideConfirmPassword,
+                  decoration: InputDecoration(
+                    hintText: 'Confirm Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      onPressed: () => setState(() => _hideConfirmPassword = !_hideConfirmPassword),
+                      icon: Icon(_hideConfirmPassword ? Icons.visibility_off : Icons.visibility),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.length < 6) {
+                      return 'Confirm password must be 6+ characters';
+                    }
+                    if (value != _passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
@@ -498,14 +504,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         : const Text('Create account'),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _resendConfirmationEmail,
-                    child: const Text('Resend confirmation email'),
-                  ),
-                ),
               ],
             ),
           ),
@@ -524,8 +522,11 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   final _backend = SupabaseBackendService.instance;
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  final Set<int> _loadedTabs = {0};
   int _index = 0;
   bool _profilePromptShown = false;
+  DateTime? _lastBackPressAt;
 
   @override
   void initState() {
@@ -568,54 +569,123 @@ class _AppShellState extends State<AppShell> {
       );
 
       if (!mounted) return;
-      setState(() => _index = 4);
+      _selectTab(4);
     });
   }
 
+  void _selectTab(int index) {
+    setState(() {
+      _index = index;
+      _loadedTabs.add(index);
+    });
+  }
+
+  Widget _buildTab(int index) {
+    switch (index) {
+      case 0:
+        return HomeScreen(onOpenTab: _selectTab);
+      case 1:
+        return const DonorListScreen();
+      case 2:
+        return const HospitalMapScreen();
+      case 3:
+        return const RequestBloodScreen();
+      case 4:
+        return const ProfileScreen();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
   void _goToIndex(int index) {
-    setState(() => _index = index);
-    Navigator.of(context).maybePop();
+    _selectTab(index);
+    _scaffoldKey.currentState?.closeDrawer();
+  }
+
+  Future<void> _handlePopAttempt() async {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+
+    if (_index != 0) {
+      _selectTab(0);
+      return;
+    }
+
+    final now = DateTime.now();
+    final shouldExit =
+        _lastBackPressAt != null && now.difference(_lastBackPressAt!) < const Duration(seconds: 2);
+    if (shouldExit) {
+      await SystemNavigator.pop();
+      return;
+    }
+
+    _lastBackPressAt = now;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Press back again to exit app')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final userId = _backend.currentUser?.id;
 
-    return NotificationSync(
-      userId: userId,
-      child: Scaffold(
-        appBar: AppBar(title: Text(_navItems[_index].label)),
-        drawer: MainMenuDrawer(
-          onOpenTab: _goToIndex,
-          onOpenPage: (page) {
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
-          },
-          onLogout: () async {
-            await _backend.signOut();
-          },
-        ),
-        body: IndexedStack(
-          index: _index,
-          children: [
-            HomeScreen(onOpenTab: (index) => setState(() => _index = index)),
-            const DonorListScreen(),
-            const HospitalMapScreen(),
-            const RequestBloodScreen(),
-            const ProfileScreen(),
-          ],
-        ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _index,
-          onDestinationSelected: (value) => setState(() => _index = value),
-          destinations: _navItems
-              .map(
-                (item) => NavigationDestination(
-                  icon: Icon(item.icon),
-                  selectedIcon: Icon(item.selectedIcon),
-                  label: item.label,
-                ),
-              )
-              .toList(),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        unawaited(_handlePopAttempt());
+      },
+      child: NotificationSync(
+        userId: userId,
+        child: Scaffold(
+          key: _scaffoldKey,
+          appBar: AppBar(
+            leading: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+            title: Text(_navItems[_index].label),
+          ),
+          drawerEnableOpenDragGesture: true,
+          drawer: MainMenuDrawer(
+            onOpenTab: _goToIndex,
+            onOpenPage: (page) {
+              final navigator = Navigator.of(context);
+              _scaffoldKey.currentState?.closeDrawer();
+              Future<void>.delayed(const Duration(milliseconds: 120), () {
+                if (!mounted) return;
+                navigator.push(_smoothPageRoute(page));
+              });
+            },
+            onLogout: () async {
+              _scaffoldKey.currentState?.closeDrawer();
+              await _backend.signOut();
+            },
+          ),
+          body: IndexedStack(
+            index: _index,
+            children: List<Widget>.generate(
+              5,
+              (tabIndex) => _loadedTabs.contains(tabIndex) ? _buildTab(tabIndex) : const SizedBox.shrink(),
+            ),
+          ),
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: _index,
+            onDestinationSelected: _selectTab,
+            destinations: _navItems
+                .map(
+                  (item) => NavigationDestination(
+                    icon: Icon(item.icon),
+                    selectedIcon: Icon(item.selectedIcon),
+                    label: item.label,
+                  ),
+                )
+                .toList(),
+          ),
         ),
       ),
     );
@@ -633,6 +703,11 @@ class MainMenuDrawer extends StatelessWidget {
   final ValueChanged<int> onOpenTab;
   final ValueChanged<Widget> onOpenPage;
   final VoidCallback onLogout;
+
+  void _handleDrawerAction(BuildContext context, VoidCallback action) {
+    Navigator.of(context).pop();
+    Future<void>.delayed(const Duration(milliseconds: 80), action);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -658,7 +733,7 @@ class MainMenuDrawer extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        profile?.fullName ?? 'Blood Connect User',
+                        profile?.fullName ?? 'Blood Plus+ User',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                       ),
                       Text(
@@ -685,6 +760,12 @@ class MainMenuDrawer extends StatelessWidget {
                     'Notifications',
                     () => onOpenPage(const NotificationsPage()),
                   ),
+                  _menuTile(
+                    context,
+                    Icons.info_outline,
+                    'About App',
+                    () => onOpenPage(const AboutPage()),
+                  ),
                 ],
               ),
             ),
@@ -692,7 +773,7 @@ class MainMenuDrawer extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('Logout'),
-              onTap: onLogout,
+              onTap: () => _handleDrawerAction(context, onLogout),
             ),
           ],
         ),
@@ -704,7 +785,7 @@ class MainMenuDrawer extends StatelessWidget {
     return ListTile(
       leading: Icon(icon),
       title: Text(label),
-      onTap: onTap,
+      onTap: () => _handleDrawerAction(context, onTap),
     );
   }
 }
@@ -719,8 +800,32 @@ class HomeScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Container(
-          padding: const EdgeInsets.all(18),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            child: Column(
+              children: const [
+                BloodDropLogo(size: 120),
+                SizedBox(height: 12),
+                Text(
+                  "GIVE'S THE GOLDEN OF LIFE",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.5,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [AppTheme.primary, AppTheme.primaryDark],
@@ -728,22 +833,29 @@ class HomeScreen extends StatelessWidget {
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primary.withValues(alpha: 0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Urgent Blood Support', style: TextStyle(color: Colors.white70)),
-              SizedBox(height: 8),
+              Text('Urgent Blood Support', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+              SizedBox(height: 10),
               Text(
                 'Use Request tab to notify matching donors instantly.',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, height: 1.3),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 18),
-        const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        const SizedBox(height: 12),
+        const SizedBox(height: 24),
+        const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: AppTheme.textPrimary)),
+        const SizedBox(height: 16),
         GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -794,6 +906,7 @@ class ActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: AppTheme.primary.withValues(alpha: 0.08),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
@@ -822,6 +935,7 @@ class _DonorListScreenState extends State<DonorListScreen> {
 
   List<DonorProfile> _allDonors = [];
   bool _loading = true;
+  bool _availableOnly = true;
   String _query = '';
   String _selectedGroup = 'All';
 
@@ -834,7 +948,7 @@ class _DonorListScreenState extends State<DonorListScreen> {
   Future<void> _loadDonors() async {
     setState(() => _loading = true);
     try {
-      final donors = await _backend.fetchAvailableDonors();
+      final donors = await _backend.fetchDonors(availableOnly: _availableOnly);
       if (!mounted) return;
       setState(() => _allDonors = donors);
     } catch (error) {
@@ -861,6 +975,18 @@ class _DonorListScreenState extends State<DonorListScreen> {
 
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Available donors only'),
+            value: _availableOnly,
+            onChanged: (value) {
+              setState(() => _availableOnly = value);
+              unawaited(_loadDonors());
+            },
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: TextField(
@@ -933,21 +1059,77 @@ class DonorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(12),
-        leading: CircleAvatar(
-          radius: 26,
-          backgroundColor: const Color(0x1AE53935),
-          child: Text(
-            donor.bloodGroup,
-            style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _callDonor(context),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppTheme.primary, AppTheme.primaryDark],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primary.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    donor.bloodGroup,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      donor.fullName,
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppTheme.textPrimary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${donor.area} • ${donor.phone}${donor.available ? '' : ' • Not available'}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.call, color: AppTheme.primary, size: 20),
+                  onPressed: () => _callDonor(context),
+                  constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                ),
+              ),
+            ],
           ),
-        ),
-        title: Text(donor.fullName, style: const TextStyle(fontWeight: FontWeight.w700)),
-        subtitle: Text('${donor.area} • ${donor.phone}'),
-        trailing: IconButton(
-          icon: const Icon(Icons.call, color: AppTheme.primary),
-          onPressed: () => _callDonor(context),
         ),
       ),
     );
@@ -964,18 +1146,27 @@ class HospitalMapScreen extends StatefulWidget {
 class _HospitalMapScreenState extends State<HospitalMapScreen> {
   final _hospitalService = HospitalService();
   final MapController _mapController = MapController();
+  final _placeSearchController = TextEditingController();
   static const LatLng _fallbackCenter = LatLng(6.9271, 79.8612);
 
   LatLng? _currentLocation;
   List<NearbyHospital> _hospitals = [];
   bool _loading = true;
+  bool _searchingPlace = false;
   String? _error;
+  String? _searchContextLabel;
   NearbyHospital? _selectedHospital;
 
   @override
   void initState() {
     super.initState();
     unawaited(_loadMapData());
+  }
+
+  @override
+  void dispose() {
+    _placeSearchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMapData() async {
@@ -1021,6 +1212,7 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
         _currentLocation = location;
         _hospitals = hospitals;
         _selectedHospital = hospitals.isNotEmpty ? hospitals.first : null;
+        _searchContextLabel = 'Your current location';
       });
     } catch (error) {
       if (!mounted) return;
@@ -1035,10 +1227,53 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
         _currentLocation ??= _fallbackCenter;
         _hospitals = fallbackHospitals;
         _selectedHospital = fallbackHospitals.isNotEmpty ? fallbackHospitals.first : null;
+        _searchContextLabel = 'Default area';
       });
     } finally {
       if (mounted) {
         setState(() => _loading = false);
+      }
+    }
+  }
+
+  Future<void> _searchByPlace() async {
+    final query = _placeSearchController.text.trim();
+    if (query.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a place to search hospitals nearby.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _searchingPlace = true;
+      _error = null;
+    });
+
+    try {
+      final place = await _hospitalService.searchPlace(query);
+      final location = LatLng(place.latitude, place.longitude);
+      final hospitals = await _hospitalService.fetchNearbyHospitals(
+        latitude: place.latitude,
+        longitude: place.longitude,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _currentLocation = location;
+        _hospitals = hospitals;
+        _selectedHospital = hospitals.isNotEmpty ? hospitals.first : null;
+        _searchContextLabel = place.displayName;
+      });
+      _mapController.move(location, 13.5);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _searchingPlace = false);
       }
     }
   }
@@ -1055,6 +1290,37 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
       padding: const EdgeInsets.all(16),
       children: [
         const Text('Nearby Hospitals', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _placeSearchController,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => unawaited(_searchByPlace()),
+                decoration: const InputDecoration(
+                  hintText: 'Search place (city, area, address)',
+                  prefixIcon: Icon(Icons.search),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: _searchingPlace ? null : _searchByPlace,
+              child: _searchingPlace
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Search'),
+            ),
+          ],
+        ),
+        if (_searchContextLabel != null) ...[
+          const SizedBox(height: 8),
+          Text('Showing hospitals near: $_searchContextLabel'),
+        ],
         if (_error != null) ...[
           const SizedBox(height: 10),
           Card(
@@ -1089,10 +1355,20 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
           ),
         ],
         const SizedBox(height: 14),
-        SizedBox(
+        Container(
           height: 300,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             child: FlutterMap(
               mapController: _mapController,
               options: MapOptions(initialCenter: current, initialZoom: 13.5),
@@ -1107,7 +1383,7 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
                       point: current,
                       width: 42,
                       height: 42,
-                      child: const Icon(Icons.my_location, color: Colors.blue, size: 30),
+                      child: const Icon(Icons.place, color: Colors.blue, size: 30),
                     ),
                     ..._hospitals.map(
                       (hospital) => Marker(
@@ -1560,6 +1836,73 @@ class _NotificationsPageState extends State<NotificationsPage> {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class AboutPage extends StatelessWidget {
+  const AboutPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('About App')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  const CircleAvatar(
+                    radius: 34,
+                    backgroundColor: Color(0x1AE53935),
+                    child: BloodDropLogo(size: 42),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Blood Plus+', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'A community blood donation app to connect donors and patients faster in emergencies.',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text('What you can do', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.people_alt_outlined, color: AppTheme.primary),
+              title: Text('Find donors'),
+              subtitle: Text('Search donor list by name, area, and blood group.'),
+            ),
+          ),
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.map_outlined, color: AppTheme.primary),
+              title: Text('Search hospitals by place'),
+              subtitle: Text('Find nearby hospitals around your searched location.'),
+            ),
+          ),
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.bloodtype_outlined, color: AppTheme.primary),
+              title: Text('Send urgent requests'),
+              subtitle: Text('Notify matching available donors quickly.'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Thank you for helping save lives through blood donation.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }

@@ -32,7 +32,7 @@ class LocalNotificationService {
   }) async {
     const androidDetails = AndroidNotificationDetails(
       'blood_connect_alerts',
-      'Blood Connect Alerts',
+         'Blood Plus+ Alerts',
       channelDescription: 'Urgent blood request and app notifications',
       importance: Importance.max,
       priority: Priority.high,
