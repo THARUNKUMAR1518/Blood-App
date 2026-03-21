@@ -38,12 +38,14 @@ class AppNotification {
     required this.id,
     required this.title,
     required this.subtitle,
+    required this.type,
     required this.createdAt,
   });
 
   final int id;
   final String title;
   final String subtitle;
+  final String type;
   final DateTime createdAt;
 
   factory AppNotification.fromJson(Map<String, dynamic> json) {
@@ -51,6 +53,7 @@ class AppNotification {
       id: (json['id'] as num?)?.toInt() ?? 0,
       title: (json['title'] ?? '').toString(),
       subtitle: (json['subtitle'] ?? '').toString(),
+      type: (json['type'] ?? 'system').toString(),
       createdAt: DateTime.tryParse((json['created_at'] ?? '').toString()) ??
           DateTime.now(),
     );

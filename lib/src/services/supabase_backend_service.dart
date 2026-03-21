@@ -173,50 +173,120 @@ class SupabaseBackendService {
     required String bloodGroup,
     required int units,
     required String hospital,
+    required String requesterPhone,
   }) async {
     final user = currentUser;
     if (user == null) {
       throw Exception('Please login again.');
     }
 
-    await _client.from('blood_requests').insert({
-      'user_id': user.id,
-      'patient_name': patientName,
-      'blood_group': bloodGroup,
-      'units': units,
-      'hospital': hospital,
-      'status': 'open',
-    });
+    await _insertBloodRequestWithSchemaFallback(
+      userId: user.id,
+      patientName: patientName,
+      bloodGroup: bloodGroup,
+      units: units,
+      hospital: hospital,
+      requesterPhone: requesterPhone,
+    );
 
     final requesterProfile = await fetchMyProfile();
     final requesterName = requesterProfile?.fullName ?? 'Someone';
+    final requesterArea = requesterProfile?.area.trim() ?? '';
+    final requestTag = DateTime.now().millisecondsSinceEpoch.toString();
 
-    final matchingDonors = await _client
+    var nearbyUsersQuery = _client
         .from('profiles')
         .select('id')
         .eq('available', true)
-        .eq('blood_group', bloodGroup)
         .neq('id', user.id);
 
-    if (matchingDonors.isNotEmpty) {
-      final notifications = matchingDonors
+    if (requesterArea.isNotEmpty) {
+      nearbyUsersQuery = nearbyUsersQuery.ilike('area', '%$requesterArea%');
+    }
+
+    final nearbyUsers = await nearbyUsersQuery;
+
+    if (nearbyUsers.isNotEmpty) {
+      final notifications = nearbyUsers
           .map((item) => {
                 'user_id': item['id'],
                 'title': 'Urgent $bloodGroup request',
-                'subtitle': '$requesterName needs $units unit(s) at $hospital',
+                'subtitle':
+                    'Patient: $patientName | Location: $hospital | Mobile: $requesterPhone | CallNo: $requesterPhone | Requester: $requesterName | Group: $bloodGroup | Units: $units | RequestId: $requestTag',
                 'type': 'blood_request',
               })
           .toList();
       await _client.from('notifications').insert(notifications);
     }
 
-    await _client.from('notifications').insert({
-      'user_id': user.id,
-      'title': 'Request submitted',
-      'subtitle':
-          'We notified nearby donors for $bloodGroup at $hospital.',
-      'type': 'system',
-    });
+  }
+
+  Future<void> _insertBloodRequestWithSchemaFallback({
+    required String userId,
+    required String patientName,
+    required String bloodGroup,
+    required int units,
+    required String hospital,
+    required String requesterPhone,
+  }) async {
+    final basePayload = {
+      'user_id': userId,
+      'patient_name': patientName,
+      'units': units,
+      'hospital': hospital,
+      'status': 'open',
+    };
+
+    Future<void> tryInsert({required bool useBloodRequired, required bool includeRequesterPhone}) async {
+      final payload = <String, dynamic>{...basePayload};
+      if (useBloodRequired) {
+        payload['blood_required'] = bloodGroup;
+      } else {
+        payload['blood_group'] = bloodGroup;
+      }
+      if (includeRequesterPhone) {
+        payload['requester_phone'] = requesterPhone;
+      }
+      await _client.from('blood_requests').insert(payload);
+    }
+
+    try {
+      await tryInsert(useBloodRequired: false, includeRequesterPhone: true);
+      return;
+    } on PostgrestException catch (error) {
+      if (!_isMissingColumnError(error)) rethrow;
+    }
+
+    try {
+      await tryInsert(useBloodRequired: false, includeRequesterPhone: false);
+      return;
+    } on PostgrestException catch (error) {
+      if (!_isMissingColumnError(error)) rethrow;
+    }
+
+    try {
+      await tryInsert(useBloodRequired: true, includeRequesterPhone: true);
+      return;
+    } on PostgrestException catch (error) {
+      if (!_isMissingColumnError(error)) rethrow;
+    }
+
+    try {
+      await tryInsert(useBloodRequired: true, includeRequesterPhone: false);
+      return;
+    } on PostgrestException catch (error) {
+      if (_isMissingColumnError(error) || error.code == '42P01') {
+        throw Exception('Database schema is outdated. Please run latest supabase/schema.sql and try again.');
+      }
+      rethrow;
+    }
+  }
+
+  bool _isMissingColumnError(PostgrestException error) {
+    final message = error.message.toLowerCase();
+    return error.code == '42703' ||
+        error.code == 'PGRST204' ||
+        (message.contains('could not find') && message.contains('column'));
   }
 
   Stream<List<AppNotification>> notificationsStream(String userId) {
@@ -231,5 +301,84 @@ class SupabaseBackendService {
               .toList()
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
         );
+  }
+
+  Future<int> removeNotificationForAll({
+    required String title,
+    required String subtitle,
+    required String type,
+    String? requestTag,
+  }) async {
+    if (requestTag != null && requestTag.trim().isNotEmpty) {
+      final normalizedTag = requestTag.trim();
+
+      final rowsWithSpace = await _client
+          .from('notifications')
+          .select('id')
+          .ilike('subtitle', '%RequestId: $normalizedTag%');
+
+      final rowsWithoutSpace = await _client
+          .from('notifications')
+          .select('id')
+          .ilike('subtitle', '%RequestId:$normalizedTag%');
+
+      final ids = <int>{
+        ...rowsWithSpace
+            .map((row) => (row['id'] as num?)?.toInt())
+            .whereType<int>(),
+        ...rowsWithoutSpace
+            .map((row) => (row['id'] as num?)?.toInt())
+            .whereType<int>(),
+      }.toList();
+
+      if (ids.isNotEmpty) {
+        await _client.from('notifications').delete().inFilter('id', ids);
+        return ids.length;
+      }
+
+      return 0;
+    }
+
+    final rows = await _client
+        .from('notifications')
+        .select('id')
+        .eq('title', title)
+        .eq('subtitle', subtitle);
+
+    final ids = rows
+        .map((row) => (row['id'] as num?)?.toInt())
+        .whereType<int>()
+        .toList();
+
+    if (ids.isEmpty) {
+      return 0;
+    }
+
+    await _client.from('notifications').delete().inFilter('id', ids);
+
+    return ids.length;
+  }
+
+  Future<void> removeNotificationById(int notificationId) async {
+    await _client
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId);
+  }
+
+  Future<void> cleanupExpiredRequestNotifications({Duration maxAge = const Duration(hours: 3)}) async {
+    final threshold = DateTime.now().subtract(maxAge).toIso8601String();
+
+    await _client
+        .from('notifications')
+        .delete()
+        .eq('type', 'blood_request')
+        .lt('created_at', threshold);
+
+    await _client
+        .from('notifications')
+        .delete()
+        .eq('title', 'Request submitted')
+        .lt('created_at', threshold);
   }
 }

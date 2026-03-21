@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -429,11 +430,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
                   decoration: const InputDecoration(
                     hintText: 'Phone number',
                     prefixIcon: Icon(Icons.call_outlined),
                   ),
-                  validator: (value) => (value == null || value.length < 8) ? 'Enter valid phone' : null,
+                  validator: (value) =>
+                      _isValidPhoneNumber(value ?? '') ? null : 'Enter a valid 10-digit mobile number',
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -649,6 +655,16 @@ class _AppShellState extends State<AppShell> {
               ),
             ),
             title: Text(_navItems[_index].label),
+            actions: [
+              if (_index == 0 && userId != null)
+                IconButton(
+                  tooltip: 'Notifications',
+                  onPressed: () {
+                    Navigator.of(context).push(_smoothPageRoute(const NotificationsPage()));
+                  },
+                  icon: const Icon(Icons.notifications_none),
+                ),
+            ],
           ),
           drawerEnableOpenDragGesture: true,
           drawer: MainMenuDrawer(
@@ -762,6 +778,12 @@ class MainMenuDrawer extends StatelessWidget {
                   ),
                   _menuTile(
                     context,
+                    Icons.menu_book_outlined,
+                    'Donor Guidelines',
+                    () => onOpenPage(const DonateBloodGuidelinesPage()),
+                  ),
+                  _menuTile(
+                    context,
                     Icons.info_outline,
                     'About App',
                     () => onOpenPage(const AboutPage()),
@@ -797,96 +819,124 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-            child: Column(
-              children: const [
-                BloodDropLogo(size: 120),
-                SizedBox(height: 12),
-                Text(
-                  "GIVE'S THE GOLDEN OF LIFE",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.5,
-                    color: AppTheme.textPrimary,
+    final updatedTime = TimeOfDay.fromDateTime(DateTime.now()).format(context);
+    return Container(
+      color: const Color(0xFFECEFF1),
+      child: Column(
+        children: [
+          Expanded(
+            flex: 44,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 22, 16, 8),
+              child: Column(
+                children: [
+                  const SizedBox(height: 6),
+                  const BloodDropLogo(size: 110),
+                  const SizedBox(height: 18),
+                  const Text(
+                    "GIVE'S THE GOLDEN OF LIFE",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontFamily: 'serif',
+                      color: AppTheme.textPrimary,
+                    ),
                   ),
+                  const SizedBox(height: 18),
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(height: 2, color: AppTheme.primary.withValues(alpha: 0.18)),
+                      Container(
+                        color: const Color(0xFFECEFF1),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        child: Text(
+                          'Every drop will save a life.',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.primaryDark.withValues(alpha: 0.9),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Last Updated On : $updatedTime',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary.withValues(alpha: 0.9),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 56,
+            child: ClipPath(
+              clipper: _HomeWaveClipper(),
+              child: Container(
+                width: double.infinity,
+                color: AppTheme.accent.withValues(alpha: 0.65),
+                padding: const EdgeInsets.fromLTRB(16, 56, 16, 20),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: ActionCard(
+                              title: 'Find a Donor',
+                              icon: Icons.search,
+                              badge: '235K',
+                              onTap: () => onOpenTab(1),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: ActionCard(
+                              title: 'Blood Request',
+                              icon: Icons.notifications_none,
+                              badge: '500K',
+                              onTap: () => onOpenTab(3),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: ActionCard(
+                              title: 'Blood Bank',
+                              icon: Icons.water_drop_outlined,
+                              badge: 'Map',
+                              onTap: () => onOpenTab(2),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: ActionCard(
+                              title: 'Other',
+                              icon: Icons.settings_outlined,
+                              badge: 'More',
+                              onTap: () => onOpenTab(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppTheme.primary, AppTheme.primaryDark],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primary.withValues(alpha: 0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
               ),
-            ],
+            ),
           ),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Urgent Blood Support', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
-              SizedBox(height: 10),
-              Text(
-                'Use Request tab to notify matching donors instantly.',
-                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, height: 1.3),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        const Text('Quick Actions', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18, color: AppTheme.textPrimary)),
-        const SizedBox(height: 16),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: 1.4,
-          children: [
-            ActionCard(
-              title: 'Find Donor',
-              icon: Icons.search,
-              onTap: () => onOpenTab(1),
-            ),
-            ActionCard(
-              title: 'Hospital Map',
-              icon: Icons.map_outlined,
-              onTap: () => onOpenTab(2),
-            ),
-            ActionCard(
-              title: 'Request Blood',
-              icon: Icons.bloodtype_outlined,
-              onTap: () => onOpenTab(3),
-            ),
-            ActionCard(
-              title: 'My Profile',
-              icon: Icons.person_outline,
-              onTap: () => onOpenTab(4),
-            ),
-          ],
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -896,31 +946,87 @@ class ActionCard extends StatelessWidget {
     super.key,
     required this.title,
     required this.icon,
+    required this.badge,
     required this.onTap,
   });
 
   final String title;
   final IconData icon;
+  final String badge;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: AppTheme.primary.withValues(alpha: 0.08),
+      margin: EdgeInsets.zero,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: AppTheme.primary, size: 30),
-            const SizedBox(height: 8),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.surfaceVariant,
+                  border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15)),
+                ),
+                child: Icon(icon, color: AppTheme.primary, size: 26),
+              ),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                  fontSize: 18,
+                  fontFamily: 'serif',
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.lightBlue.shade400,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  badge,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+class _HomeWaveClipper extends CustomClipper<ui.Path> {
+  @override
+  ui.Path getClip(Size size) {
+    final path = ui.Path();
+    path.lineTo(0, 40);
+    path.quadraticBezierTo(size.width * 0.16, 0, size.width * 0.35, 32);
+    path.quadraticBezierTo(size.width * 0.48, 54, size.width * 0.62, 30);
+    path.quadraticBezierTo(size.width * 0.8, 0, size.width, 38);
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<ui.Path> oldClipper) => false;
 }
 
 class DonorListScreen extends StatefulWidget {
@@ -937,7 +1043,7 @@ class _DonorListScreenState extends State<DonorListScreen> {
   bool _loading = true;
   bool _availableOnly = true;
   String _query = '';
-  String _selectedGroup = 'All';
+  String? _selectedBloodGroup;
 
   @override
   void initState() {
@@ -950,7 +1056,13 @@ class _DonorListScreenState extends State<DonorListScreen> {
     try {
       final donors = await _backend.fetchDonors(availableOnly: _availableOnly);
       if (!mounted) return;
-      setState(() => _allDonors = donors);
+      setState(() {
+        _allDonors = donors;
+        if (_selectedBloodGroup != null &&
+            !_allDonors.any((donor) => donor.bloodGroup == _selectedBloodGroup)) {
+          _selectedBloodGroup = null;
+        }
+      });
     } catch (error) {
       if (!mounted) return;
       _showSnack(context, error.toString());
@@ -959,20 +1071,26 @@ class _DonorListScreenState extends State<DonorListScreen> {
     }
   }
 
+  List<String> get _visibleBloodGroups {
+    final registeredGroups = _allDonors
+        .map((donor) => donor.bloodGroup)
+        .where((group) => group.trim().isNotEmpty)
+        .toSet();
+    return bloodGroups.where(registeredGroups.contains).toList();
+  }
+
   List<DonorProfile> get _filtered {
     return _allDonors.where((donor) {
       final search = _query.toLowerCase();
-      final matchName = donor.fullName.toLowerCase().contains(search);
-      final matchArea = donor.area.toLowerCase().contains(search);
-      final groupMatch = _selectedGroup == 'All' || donor.bloodGroup == _selectedGroup;
-      return (matchName || matchArea) && groupMatch;
+      final matchesArea = donor.area.toLowerCase().contains(search);
+      final matchesBloodGroup =
+          _selectedBloodGroup == null || donor.bloodGroup == _selectedBloodGroup;
+      return matchesArea && matchesBloodGroup;
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final groups = ['All', ...{..._allDonors.map((item) => item.bloodGroup)}];
-
     return Column(
       children: [
         Padding(
@@ -991,31 +1109,42 @@ class _DonorListScreenState extends State<DonorListScreen> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: TextField(
             decoration: const InputDecoration(
-              hintText: 'Search donors by name or area',
+              hintText: 'Search by area',
               prefixIcon: Icon(Icons.search),
             ),
             onChanged: (value) => setState(() => _query = value),
           ),
         ),
-        SizedBox(
-          height: 50,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            scrollDirection: Axis.horizontal,
-            itemBuilder: (_, index) {
-              final group = groups[index];
-              final selected = _selectedGroup == group;
-              return ChoiceChip(
-                label: Text(group),
-                selected: selected,
-                onSelected: (_) => setState(() => _selectedGroup = group),
-              );
-            },
-            separatorBuilder: (context, index) => const SizedBox(width: 8),
-            itemCount: groups.length,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ChoiceChip(
+                    label: const Text('All'),
+                    selected: _selectedBloodGroup == null,
+                    onSelected: (_) => setState(() => _selectedBloodGroup = null),
+                  ),
+                  ..._visibleBloodGroups.map(
+                    (group) => Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: ChoiceChip(
+                        label: Text(group),
+                        selected: _selectedBloodGroup == group,
+                        onSelected: (_) => setState(() => _selectedBloodGroup = group),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        const SizedBox(height: 8),
+
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
@@ -1278,6 +1407,26 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
     }
   }
 
+  Future<void> _openHospitalInGoogleMaps(NearbyHospital hospital) async {
+    final queryText = hospital.address.trim().isNotEmpty
+        ? '${hospital.name}, ${hospital.address}'
+        : '${hospital.name} ${hospital.latitude},${hospital.longitude}';
+
+    final googleSearchUri = Uri.https('www.google.com', '/maps/search/', {
+      'api': '1',
+      'query': queryText,
+    });
+
+    final launched = await launchUrl(
+      googleSearchUri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!launched && mounted) {
+      _showSnack(context, 'Could not open Google Maps.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -1390,10 +1539,18 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
                         point: LatLng(hospital.latitude, hospital.longitude),
                         width: 42,
                         height: 42,
-                        child: Icon(
-                          Icons.local_hospital,
-                          color: _selectedHospital == hospital ? Colors.blue : AppTheme.primary,
-                          size: 30,
+                        child: GestureDetector(
+                          onTap: () {
+                            final point = LatLng(hospital.latitude, hospital.longitude);
+                            _mapController.move(point, 15);
+                            setState(() => _selectedHospital = hospital);
+                            unawaited(_openHospitalInGoogleMaps(hospital));
+                          },
+                          child: Icon(
+                            Icons.local_hospital,
+                            color: _selectedHospital == hospital ? Colors.blue : AppTheme.primary,
+                            size: 30,
+                          ),
                         ),
                       ),
                     ),
@@ -1417,6 +1574,7 @@ class _HospitalMapScreenState extends State<HospitalMapScreen> {
                       final point = LatLng(hospital.latitude, hospital.longitude);
                       _mapController.move(point, 15);
                       setState(() => _selectedHospital = hospital);
+                      unawaited(_openHospitalInGoogleMaps(hospital));
                     },
                     leading: const Icon(Icons.place_outlined, color: AppTheme.primary),
                     title: Text(hospital.name),
@@ -1442,6 +1600,7 @@ class _RequestBloodScreenState extends State<RequestBloodScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final _patientController = TextEditingController();
+  final _mobileController = TextEditingController();
   final _hospitalController = TextEditingController();
   final _unitsController = TextEditingController();
   String _group = 'A+';
@@ -1450,6 +1609,7 @@ class _RequestBloodScreenState extends State<RequestBloodScreen> {
   @override
   void dispose() {
     _patientController.dispose();
+    _mobileController.dispose();
     _hospitalController.dispose();
     _unitsController.dispose();
     super.dispose();
@@ -1465,6 +1625,7 @@ class _RequestBloodScreenState extends State<RequestBloodScreen> {
         bloodGroup: _group,
         units: int.parse(_unitsController.text),
         hospital: _hospitalController.text.trim(),
+        requesterPhone: _mobileController.text.trim(),
       );
 
       await LocalNotificationService.instance.show(
@@ -1476,6 +1637,7 @@ class _RequestBloodScreenState extends State<RequestBloodScreen> {
       if (!mounted) return;
       _showSnack(context, 'Request submitted successfully.');
       _patientController.clear();
+      _mobileController.clear();
       _hospitalController.clear();
       _unitsController.clear();
       setState(() => _group = 'A+');
@@ -1507,6 +1669,21 @@ class _RequestBloodScreenState extends State<RequestBloodScreen> {
                 prefixIcon: Icon(Icons.person_outline),
               ),
               validator: (value) => (value == null || value.isEmpty) ? 'Enter patient name' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _mobileController,
+              keyboardType: TextInputType.phone,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
+              decoration: const InputDecoration(
+                hintText: 'Requester mobile number',
+                prefixIcon: Icon(Icons.call_outlined),
+              ),
+              validator: (value) =>
+                  _isValidPhoneNumber(value ?? '') ? null : 'Enter a valid 10-digit mobile number',
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -1621,8 +1798,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    if (_nameController.text.trim().isEmpty || _phoneController.text.trim().length < 8) {
-      _showSnack(context, 'Please enter valid profile details.');
+    if (_nameController.text.trim().isEmpty) {
+      _showSnack(context, 'Please enter your name.');
+      return;
+    }
+
+    if (!_isValidPhoneNumber(_phoneController.text)) {
+      _showSnack(context, 'Please enter a valid 10-digit mobile number.');
       return;
     }
 
@@ -1715,6 +1897,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         TextField(
           controller: _phoneController,
           keyboardType: TextInputType.phone,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(10),
+          ],
           decoration: const InputDecoration(
             hintText: 'Phone',
             prefixIcon: Icon(Icons.call_outlined),
@@ -1793,6 +1979,153 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
+  final Set<int> _expandedNotificationIds = <int>{};
+
+  bool _isRequesterSelfNotification(AppNotification item) {
+    return item.title.trim().toLowerCase() == 'request submitted';
+  }
+
+  bool _isExpiredRequestNotification(AppNotification item) {
+    final isRequestNotification = item.type == 'blood_request' || item.title == 'Request submitted';
+    if (!isRequestNotification) return false;
+    return DateTime.now().difference(item.createdAt) >= const Duration(hours: 3);
+  }
+
+  String _onlyDigits(String value) => value.replaceAll(RegExp(r'[^0-9]'), '');
+
+  Future<String?> _resolveMobileForNotification(AppNotification item) async {
+    final details = _parseNotificationDetails(item.subtitle);
+
+    final parsedMobile = _onlyDigits(details['mobile'] ?? '');
+    if (parsedMobile.length >= 10) {
+      return parsedMobile;
+    }
+
+    final inlineMatch = RegExp(r'(?:\+?\d[\d\s\-]{8,}\d)').firstMatch(item.subtitle);
+    final inlineMobile = _onlyDigits(inlineMatch?.group(0) ?? '');
+    if (inlineMobile.length >= 10) {
+      return inlineMobile;
+    }
+
+    final backend = SupabaseBackendService.instance;
+
+    if (item.title == 'Request submitted') {
+      final profile = await backend.fetchMyProfile();
+      final ownMobile = _onlyDigits(profile?.phone ?? '');
+      if (ownMobile.length >= 10) {
+        return ownMobile;
+      }
+    }
+
+    final requesterName = (details['requester'] ?? '').trim().toLowerCase();
+    final location = (details['location'] ?? '').trim().toLowerCase();
+    if (requesterName.isNotEmpty && requesterName != '-') {
+      final donors = await backend.fetchDonors();
+      for (final donor in donors) {
+        final nameMatches = donor.fullName.trim().toLowerCase() == requesterName;
+        final areaMatches = location.isEmpty || location == '-' || donor.area.toLowerCase().contains(location);
+        if (nameMatches && areaMatches) {
+          final donorMobile = _onlyDigits(donor.phone);
+          if (donorMobile.length >= 10) {
+            return donorMobile;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  Map<String, String> _parseNotificationDetails(String subtitle) {
+    final details = <String, String>{};
+    final parts = subtitle.split('|').map((part) => part.trim()).where((part) => part.isNotEmpty);
+    for (final part in parts) {
+      final index = part.indexOf(':');
+      if (index <= 0) continue;
+      final key = part.substring(0, index).trim().toLowerCase();
+      final value = part.substring(index + 1).trim();
+      if (value.isNotEmpty) {
+        details[key] = value;
+      }
+    }
+
+    String? firstMatch(RegExp pattern) {
+      final match = pattern.firstMatch(subtitle);
+      final value = match?.group(1)?.trim();
+      return (value == null || value.isEmpty) ? null : value;
+    }
+
+    final legacyRequester = firstMatch(RegExp(r'^(.+?)\s+needs\s+', caseSensitive: false));
+    final legacyLocation = firstMatch(RegExp(r'\sat\s(.+?)(?:\.|\||$)', caseSensitive: false));
+    final legacyMobile = firstMatch(RegExp(r'contact\s*:?\s*([0-9+\-\s]{6,})', caseSensitive: false));
+
+    final patient = details['patient'] ?? details['patient name'];
+    final location = details['location'] ?? details['hospital'] ?? legacyLocation;
+    final mobile = details['callno'] ??
+      details['mobile'] ??
+      details['mobile no'] ??
+      details['phone'] ??
+      details['contact'] ??
+      legacyMobile;
+    final requester = details['requester'] ?? details['requester name'] ?? legacyRequester;
+    final group = details['group'] ?? details['blood group'] ?? details['blood'];
+    final units = details['units'];
+    final requestTag = details['requestid'] ?? details['request id'];
+
+    return {
+      'patient': patient ?? '-',
+      'location': location ?? '-',
+      'mobile': mobile ?? '-',
+      'requester': requester ?? '-',
+      'group': group ?? '-',
+      'units': units ?? '-',
+      'requestTag': requestTag ?? '',
+    };
+  }
+
+  Future<void> _callRequesterFromNotification(AppNotification item) async {
+    final mobile = await _resolveMobileForNotification(item);
+    if (mobile == null) {
+      if (!mounted) return;
+      _showSnack(context, 'Mobile number not available in this notification.');
+      return;
+    }
+
+    final uri = Uri(scheme: 'tel', path: mobile);
+    final launched = await launchUrl(uri);
+    if (!mounted) return;
+    if (!launched) {
+      _showSnack(context, 'Could not open phone dialer.');
+    }
+  }
+
+  Widget _detailLine({required IconData icon, required String label, required String value}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: AppTheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: Theme.of(context).textTheme.bodyMedium,
+                children: [
+                  TextSpan(
+                    text: '$label: ',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  TextSpan(text: value.isEmpty ? '-' : value),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final backend = SupabaseBackendService.instance;
@@ -1814,7 +2147,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final items = snapshot.data ?? [];
+          final items = (snapshot.data ?? [])
+              .where((item) => !_isRequesterSelfNotification(item))
+              .where((item) => !_isExpiredRequestNotification(item))
+              .toList();
           if (items.isEmpty) {
             return const Center(child: Text('No notifications yet.'));
           }
@@ -1824,13 +2160,68 @@ class _NotificationsPageState extends State<NotificationsPage> {
             itemCount: items.length,
             itemBuilder: (_, index) {
               final item = items[index];
+              final details = _parseNotificationDetails(item.subtitle);
+              final isExpanded = _expandedNotificationIds.contains(item.id);
+
               return Card(
-                margin: const EdgeInsets.only(bottom: 10),
-                child: ListTile(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ExpansionTile(
+                  tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  childrenPadding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
                   leading: const Icon(Icons.notifications, color: AppTheme.primary),
-                  title: Text(item.title),
-                  subtitle: Text(item.subtitle),
-                  trailing: Text(_relativeTime(item.createdAt), style: const TextStyle(fontSize: 12)),
+                  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  collapsedShape:
+                      const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                  title: Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  subtitle: Text(
+                    _relativeTime(item.createdAt),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Call requester',
+                        icon: const Icon(Icons.call, color: AppTheme.primary),
+                        onPressed: () => unawaited(_callRequesterFromNotification(item)),
+                      ),
+                      const Icon(Icons.expand_more),
+                    ],
+                  ),
+                  initiallyExpanded: isExpanded,
+                  onExpansionChanged: (expanded) {
+                    setState(() {
+                      if (expanded) {
+                        _expandedNotificationIds.add(item.id);
+                      } else {
+                        _expandedNotificationIds.remove(item.id);
+                      }
+                    });
+                  },
+                  children: [
+                    _detailLine(icon: Icons.person_outline, label: 'Requester', value: details['requester'] ?? '-'),
+                    _detailLine(icon: Icons.personal_injury_outlined, label: 'Patient', value: details['patient'] ?? '-'),
+                    _detailLine(icon: Icons.place_outlined, label: 'Location', value: details['location'] ?? '-'),
+                    _detailLine(icon: Icons.bloodtype_outlined, label: 'Blood Group', value: details['group'] ?? '-'),
+                    _detailLine(icon: Icons.monitor_weight_outlined, label: 'Units', value: details['units'] ?? '-'),
+                    _detailLine(icon: Icons.call_outlined, label: 'Mobile', value: details['mobile'] ?? '-'),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => unawaited(_callRequesterFromNotification(item)),
+                            icon: const Icon(Icons.call, size: 18),
+                            label: const Text('Call'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               );
             },
@@ -1908,6 +2299,171 @@ class AboutPage extends StatelessWidget {
   }
 }
 
+class DonateBloodGuidelinesPage extends StatelessWidget {
+  const DonateBloodGuidelinesPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Guideline For Blood Donation')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text('Chapter 1', style: TextStyle(color: Colors.orange, fontSize: 12)),
+          const SizedBox(height: 4),
+          const Text('General Guidelines For Blood Donation', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                children: const [
+                  _GuideTimelineItem(text: 'Be in good general health and feeling well.', color: Color(0xFF4DB6AC)),
+                  _GuideTimelineItem(
+                    text: 'Be at least 17 years old in most states (16 years old with parental consent in some states).',
+                  ),
+                  _GuideTimelineItem(
+                    text: 'Weigh at least 110 pounds. Additional weight requirements apply for donors 18 years old and younger and all high school donors.',
+                  ),
+                  _GuideTimelineItem(text: 'Have not donated blood in the last 56 days.'),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppTheme.accent.withValues(alpha: 0.7), Colors.purple.shade100.withValues(alpha: 0.7)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: const [
+                Text('How To Get Ready', style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700)),
+                SizedBox(height: 8),
+                Text(
+                  'Donors must have proof of age to ensure they meet the minimum age requirements and present a primary form of ID or two secondary forms of ID.',
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 14),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 190,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: const [
+                _GuideStepCard(
+                  step: 'Step 1',
+                  title: 'Drink Extra Liquids',
+                  description: 'Drink an extra 16 oz. of water before your appointment.',
+                  icon: Icons.local_drink_outlined,
+                ),
+                SizedBox(width: 10),
+                _GuideStepCard(
+                  step: 'Step 2',
+                  title: 'Select Appointment',
+                  description: 'Choose a nearby center and schedule your donation time.',
+                  icon: Icons.calendar_month_outlined,
+                ),
+                SizedBox(width: 10),
+                _GuideStepCard(
+                  step: 'Step 3',
+                  title: 'Take Rest',
+                  description: 'Sleep well before donation and avoid heavy stress.',
+                  icon: Icons.nightlight_round,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuideTimelineItem extends StatelessWidget {
+  const _GuideTimelineItem({required this.text, this.color = const Color(0xFF78909C)});
+
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 6),
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            Container(width: 1, height: 54, color: color.withValues(alpha: 0.35)),
+          ],
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 10, top: 2),
+            child: Text(text),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GuideStepCard extends StatelessWidget {
+  const _GuideStepCard({
+    required this.step,
+    required this.title,
+    required this.description,
+    required this.icon,
+  });
+
+  final String step;
+  final String title;
+  final String description;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 245,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 26,
+                backgroundColor: Colors.lightBlue.shade300,
+                child: Icon(icon, color: Colors.white),
+              ),
+              const SizedBox(height: 10),
+              Text(step, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+              const SizedBox(height: 2),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 20)),
+              const SizedBox(height: 8),
+              Text(description, style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class NotificationSync extends StatefulWidget {
   const NotificationSync({super.key, required this.userId, required this.child});
 
@@ -1920,6 +2476,7 @@ class NotificationSync extends StatefulWidget {
 
 class _NotificationSyncState extends State<NotificationSync> {
   StreamSubscription<List<AppNotification>>? _subscription;
+  Timer? _cleanupTimer;
   final Set<int> _seenIds = {};
   bool _seeded = false;
 
@@ -1934,6 +2491,7 @@ class _NotificationSyncState extends State<NotificationSync> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.userId != widget.userId) {
       _subscription?.cancel();
+      _cleanupTimer?.cancel();
       _seenIds.clear();
       _seeded = false;
       _start();
@@ -1943,6 +2501,11 @@ class _NotificationSyncState extends State<NotificationSync> {
   void _start() {
     final userId = widget.userId;
     if (userId == null) return;
+
+    unawaited(_runExpiryCleanup());
+    _cleanupTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      unawaited(_runExpiryCleanup());
+    });
 
     _subscription = SupabaseBackendService.instance.notificationsStream(userId).listen((items) {
       if (!_seeded) {
@@ -1967,9 +2530,16 @@ class _NotificationSyncState extends State<NotificationSync> {
     });
   }
 
+  Future<void> _runExpiryCleanup() async {
+    try {
+      await SupabaseBackendService.instance.cleanupExpiredRequestNotifications();
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
     _subscription?.cancel();
+    _cleanupTimer?.cancel();
     super.dispose();
   }
 
@@ -2028,4 +2598,9 @@ String _relativeTime(DateTime time) {
   if (diff.inMinutes < 60) return '${diff.inMinutes}m';
   if (diff.inHours < 24) return '${diff.inHours}h';
   return '${diff.inDays}d';
+}
+
+bool _isValidPhoneNumber(String value) {
+  final trimmed = value.trim();
+  return RegExp(r'^\d{10}$').hasMatch(trimmed);
 }
